@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Система: Генератор Промптов → Сценарист (с БД)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 min-h-screen text-white">
+    <div class="container mx-auto px-4 py-8 max-w-7xl">
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
+                🎬 AI Система Создания Сценариев
+            </h1>
+            <p class="text-gray-300">Агент 1: Генератор Промптов → Агент 2: Сценарист</p>
+            <div class="mt-4 flex justify-center gap-4">
+                <button onclick="switchTab('create')" id="tabCreate" class="px-6 py-2 bg-purple-600 rounded-lg font-semibold">
+                    ✏️ Создать
+                </button>
+                <button onclick="switchTab('history')" id="tabHistory" class="px-6 py-2 bg-slate-700 rounded-lg font-semibold">
+                    📚 История
+                </button>
+                <button onclick="switchTab('stats')" id="tabStats" class="px-6 py-2 bg-slate-700 rounded-lg font-semibold">
+                    📊 Статистика
+                </button>
+            </div>
+        </div>
+
+        <!-- Tab: Create -->
+        <div id="createTab">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Left Panel: Input -->
+                <div class="bg-slate-800/50 backdrop-blur rounded-lg p-6 border border-purple-500/30">
+                    <h2 class="text-2xl font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-3xl">💡</span> Ваша Идея
+                    </h2>
+                    
+                    <textarea 
+                        id="userIdea" 
+                        class="w-full h-32 bg-slate-700/50 border border-purple-500/30 rounded-lg p-4 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500"
+                        placeholder="Опишите идею для фильма (жанр, тема, настроение, персонажи...)&#10;&#10;Например: 'Драма о пианисте, потерявшем слух' или 'Научная фантастика про восстание ИИ'"
+                    ></textarea>
+
+                    <div class="mt-4 space-y-3">
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-2">Жанр</label>
+                            <select id="genre" class="w-full bg-slate-700/50 border border-purple-500/30 rounded-lg p-3 text-white">
+                                <option value="">Любой</option>
+                                <option value="драма">Драма</option>
+                                <option value="триллер">Триллер</option>
+                                <option value="фантастика">Фантастика</option>
+                                <option value="комедия">Комедия</option>
+                                <option value="ужасы">Ужасы</option>
+                                <option value="романтика">Романтика</option>
+                                <option value="боевик">Боевик</option>
+                                <option value="детектив">Детектив</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-gray-300 mb-2">Длина сценария</label>
+                            <select id="length" class="w-full bg-slate-700/50 border border-purple-500/30 rounded-lg p-3 text-white">
+                                <option value="краткий">Краткий (основные сцены)</option>
+                                <option value="средний" selected>Средний (детализированный)</option>
+                                <option value="полный">Полный (максимально подробный)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button 
+                        id="generateBtn"
+                        class="w-full mt-6 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-semibold py-4 rounded-lg transition-all transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        🚀 Запустить AI Агентов
+                    </button>
+
+                    <div id="dbStatus" class="mt-4 p-3 bg-green-900/30 border border-green-500/30 rounded-lg text-green-300 text-sm hidden">
+                        <span class="font-semibold">✓ База данных:</span> <span id="dbStatusText"></span>
+                    </div>
+                </div>
+
+                <!-- Right Panel: Agent 1 Output -->
+                <div class="bg-slate-800/50 backdrop-blur rounded-lg p-6 border border-blue-500/30">
+                    <h2 class="text-2xl font-semibold mb-4 flex items-center gap-2">
+                        <span class="text-3xl">🤖</span> Агент 1: Промпт
+                    </h2>
+                    <div id="promptOutput" class="bg-slate-700/30 rounded-lg p-4 min-h-[300px] text-gray-300 whitespace-pre-wrap border border-blue-500/20">
+                        <span class="text-gray-500 italic">Здесь появится сгенерированный промпт для сценариста...</span>
+                    </div>
+                    <div id="promptStatus" class="mt-3 text-sm text-gray-400"></div>
+                </div>
+            </div>
+
+            <!-- Bottom Panel: Agent 2 Output -->
+            <div class="mt-6 bg-slate-800/50 backdrop-blur rounded-lg p-6 border border-green-500/30">
+                <h2 class="text-2xl font-semibold mb-4 flex items-center gap-2">
+                    <span class="text-3xl">✍️</span> Агент 2: Сценарий Фильма
+                </h2>
+                <div id="screenplayOutput" class="bg-slate-700/30 rounded-lg p-6 min-h-[400px] text-gray-200 whitespace-pre-wrap border border-green-500/20 font-mono text-sm">
+                    <span class="text-gray-500 italic">Здесь появится готовый сценарий...</span>
+                </div>
+                <div id="screenplayStatus" class="mt-3 text-sm text-gray-400"></div>
+                <button 
+                    id="downloadBtn"
+                    class="hidden mt-4 bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-all"
+                >
+                    📥 Скачать Сценарий
+                </button>
+            </div>
+
+            <!-- Progress Indicator -->
+            <div id="progress" class="hidden mt-6 bg-slate-800/50 backdrop-blur rounded-lg p-4 border border-yellow-500/30">
+                <div class="flex items-center gap-3">
+                    <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-yellow-400"></div>
+                    <span id="progressText" class="text-yellow-300">Обработка...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: History -->
+        <div id="historyTab" class="hidden">
+            <div class="bg-slate-800/50 backdrop-blur rounded-lg p-6 border border-purple-500/30">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-semibold">📚 История Проектов</h2>
+                    <button onclick="loadHistory()" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg">
+                        🔄 Обновить
+                    </button>
+                </div>
+
+                <div class="mb-4 flex gap-3">
+                    <input 
+                        id="searchKeyword" 
+                        type="text" 
+                        placeholder="Поиск по идее..."
+                        class="flex-1 bg-slate-700/50 border border-purple-500/30 rounded-lg p-3 text-white"
+                    >
+                    <select id="searchGenre" class="bg-slate-700/50 border border-purple-500/30 rounded-lg p-3 text-white">
+                        <option value="">Все жанры</option>
+                        <option value="драма">Драма</option>
+                        <option value="триллер">Триллер</option>
+                        <option value="фантастика">Фантастика</option>
+                        <option value="комедия">Комедия</option>
+                    </select>
+                    <button onclick="searchProjects()" class="bg-blue-600 hover:bg-blue-700 px-6 py-2 rounded-lg">
+                        🔍 Поиск
+                    </button>
+                </div>
+
+                <div id="historyList" class="space-y-4">
+                    <p class="text-gray-400 text-center py-8">Загрузка...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab: Statistics -->
+        <div id="statsTab" class="hidden">
+            <div class="bg-slate-800/50 backdrop-blur rounded-lg p-6 border border-purple-500/30">
+                <h2 class="text-2xl font-semibold mb-6">📊 Статистика</h2>
+                <div id="statisticsContent">
+                    <p class="text-gray-400 text-center py-8">Загрузка...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_ENDPOINT = "https://api.anthropic.com/v1/messages";
+        const DB_API_URL = "api.php"; // Путь к вашему PHP API
+        
+        let currentProjectId = null;
+        let currentPromptId = null;
+
+        // Tabs
+        function switchTab(tab) {
+            document.getElementById('createTab').classList.add('hidden');
+            document.getElementById('historyTab').classList.add('hidden');
+            document.getElementById('statsTab').classList.add('hidden');
+            
+            document.getElementById('tabCreate').classList.remove('bg-purple-600');
+            document.getElementById('tabHistory').classList.remove('bg-purple-600');
+            document.getElementById('tabStats').classList.remove('bg-purple-600');
+            
+            document.getElementById('tabCreate').classList.add('bg-slate-700');
+            document.getElementById('tabHistory').classList.add('bg-slate-700');
+            document.getElementById('tabStats').classList.add('bg-slate-700');
+            
+            if (tab === 'create') {
+                document.getElementById('createTab').classList.remove('hidden');
+                document.getElementById('tabCreate').classList.add('bg-purple-600');
+                document.getElementById('tabCreate').classList.remove('bg-slate-700');
+            } else if (tab === 'history') {
+                document.getElementById('historyTab').classList.remove('hidden');
+                document.getElementById('tabHistory').classList.add('bg-purple-600');
+                document.getElementById('tabHistory').classList.remove('bg-slate-700');
+                loadHistory();
+            } else if (tab === 'stats') {
+                document.getElementById('statsTab').classList.remove('hidden');
+                document.getElementById('tabStats').classList.add('bg-purple-600');
+                document.getElementById('tabStats').classList.remove('bg-slate-700');
+                loadStatistics();
+            }
+        }
+
+        // Database API calls
+        async function dbCreateProject(userIdea, genre, lengthType) {
+            const response = await fetch(`${DB_API_URL}?action=create_project`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ user_idea: userIdea, genre, length_type: lengthType })
+            });
+            return await response.json();
+        }
+
+        async function dbSavePrompt(projectId, promptText, tokensUsed) {
+            const response = await fetch(`${DB_API_URL}?action=save_prompt`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ project_id: projectId, prompt_text: promptText, tokens_used: tokensUsed })
+            });
+            return await response.json();
+        }
+
+        async function dbSaveScreenplay(projectId, promptId, screenplayText, tokensUsed) {
+            const response = await fetch(`${DB_API_URL}?action=save_screenplay`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    project_id: projectId, 
+                    prompt_id: promptId, 
+                    screenplay_text: screenplayText, 
+                    tokens_used: tokensUsed 
+                })
+            });
+            return await response.json();
+        }
+
+        async function loadHistory() {
+            const response = await fetch(`${DB_API_URL}?action=get_all_projects`);
+            const data = await response.json();
+            
+            const historyList = document.getElementById('historyList');
+            
+            if (data.success && data.projects.length > 0) {
+                historyList.innerHTML = data.projects.map(project => `
+                    <div class="bg-slate-700/30 rounded-lg p-4 border border-purple-500/20 hover:border-purple-500/50 transition-all">
+                        <div class="flex justify-between items-start mb-2">
+                            <div class="flex-1">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <span class="text-xs px-2 py-1 rounded ${
+                                        project.status === 'screenplay_generated' ? 'bg-green-600' :
+                                        project.status === 'prompt_generated' ? 'bg-yellow-600' :
+                                        'bg-gray-600'
+                                    }">${
+                                        project.status === 'screenplay_generated' ? '✓ Завершён' :
+                                        project.status === 'prompt_generated' ? '⏳ Промпт готов' :
+                                        '⚡ В процессе'
+                                    }</span>
+                                    ${project.genre ? `<span class="text-xs px-2 py-1 rounded bg-purple-600">${project.genre}</span>` : ''}
+                                    <span class="text-xs text-gray-400">${new Date(project.created_at).toLocaleString('ru-RU')}</span>
+                                </div>
+                                <p class="text-sm text-gray-300 mb-2">${project.user_idea}</p>
+                                ${project.word_count ? `<p class="text-xs text-gray-500">Слов: ${project.word_count} | Сцен: ${project.scene_count}</p>` : ''}
+                            </div>
+                            <button onclick="viewProject(${project.id})" class="ml-4 bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded text-sm">
+                                👁️ Просмотр
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                historyList.innerHTML = '<p class="text-gray-400 text-center py-8">История пуста</p>';
+            }
+        }
+
+        async function searchProjects() {
+            const keyword = document.getElementById('searchKeyword').value;
+            const genre = document.getElementById('searchGenre').value;
+            
+            const response = await fetch(`${DB_API_URL}?action=search&keyword=${encodeURIComponent(keyword)}&genre=${genre}`);
+            const data = await response.json();
+            
+            const historyList = document.getElementById('historyList');
+            
+            if (data.success && data.projects.length > 0) {
+                historyList.innerHTML = data.projects.map(project => `
+                    <div class="bg-slate-700/30 rounded-lg p-4 border border-purple-500/20">
+                        <p class="text-sm mb-2">${project.user_idea}</p>
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs text-gray-400">${new Date(project.created_at).toLocaleString('ru-RU')}</span>
+                            <button onclick="viewProject(${project.id})" class="bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded text-xs">
+                                Просмотр
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                historyList.innerHTML = '<p class="text-gray-400 text-center py-8">Ничего не найдено</p>';
+            }
+        }
+
+        async function loadStatistics() {
+            const response = await fetch(`${DB_API_URL}?action=get_statistics`);
+            const data = await response.json();
+            
+            const statsContent = document.getElementById('statisticsContent');
+            
+            if (data.success) {
+                const general = data.general;
+                const byGenre = data.by_genre;
+                
+                statsContent.innerHTML = `
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-slate-700/30 rounded-lg p-4 border border-purple-500/20">
+                            <div class="text-3xl font-bold text-purple-400">${general.total_projects}</div>
+                            <div class="text-sm text-gray-400">Всего проектов</div>
+                        </div>
+                        <div class="bg-slate-700/30 rounded-lg p-4 border border-green-500/20">
+                            <div class="text-3xl font-bold text-green-400">${general.completed_projects}</div>
+                            <div class="text-sm text-gray-400">Завершено</div>
+                        </div>
+                        <div class="bg-slate-700/30 rounded-lg p-4 border border-blue-500/20">
+                            <div class="text-3xl font-bold text-blue-400">${general.unique_genres}</div>
+                            <div class="text-sm text-gray-400">Уникальных жанров</div>
+                        </div>
+                        <div class="bg-slate-700/30 rounded-lg p-4 border border-yellow-500/20">
+                            <div class="text-3xl font-bold text-yellow-400">${Math.round(general.avg_generation_time_seconds || 0)}с</div>
+                            <div class="text-sm text-gray-400">Среднее время</div>
+                        </div>
+                    </div>
+                    
+                    <h3 class="text-xl font-semibold mb-4">Распределение по жанрам</h3>
+                    <div class="space-y-2">
+                        ${byGenre.map(item => `
+                            <div class="bg-slate-700/30 rounded-lg p-3 border border-purple-500/20">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="font-semibold">${item.genre}</span>
+                                    <span class="text-sm text-gray-400">${item.count} проектов (${item.percentage}%)</span>
+                                </div>
+                                <div class="w-full bg-slate-600 rounded-full h-2">
+                                    <div class="bg-purple-500 h-2 rounded-full" style="width: ${item.percentage}%"></div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+        }
+
+        async function viewProject(projectId) {
+            const response = await fetch(`${DB_API_URL}?action=get_project&id=${projectId}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                const project = data.project;
+                switchTab('create');
+                
+                document.getElementById('userIdea').value = project.user_idea;
+                document.getElementById('genre').value = project.genre || '';
+                document.getElementById('promptOutput').textContent = project.prompt_text || 'Промпт отсутствует';
+                document.getElementById('screenplayOutput').textContent = project.screenplay_text || 'Сценарий отсутствует';
+                
+                if (project.screenplay_text) {
+                    document.getElementById('downloadBtn').classList.remove('hidden');
+                }
+            }
+        }
+
+        // Agent 1: Prompt Generator
+        async function generatePrompt(userIdea, genre, length) {
+            const systemPrompt = `Ты - эксперт по созданию промптов для AI-сценариста. Твоя задача - преобразовать краткую идею пользователя в детальный, структурированный промпт для создания сценария полнометражного фильма.
+
+Создай промпт, который включает:
+1. Расширенное описание концепции и темы
+2. Детали про главных персонажей (минимум 3)
+3. Ключевые конфликты и драматические повороты
+4. Структуру трёх актов
+5. Эмоциональную палитру и тон
+6. Визуальный стиль и атмосферу
+7. Целевую аудиторию
+
+Промпт должен быть на русском языке, вдохновляющим и давать сценаристу чёткое видение фильма.`;
+
+            const userMessage = `Исходная идея: ${userIdea}
+${genre ? `Жанр: ${genre}` : ''}
+Уровень детализации: ${length}
+
+Создай подробный промпт для сценариста.`;
+
+            const response = await fetch(API_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    model: "claude-sonnet-4-20250514",
+                    max_tokens: 1000,
+                    system: systemPrompt,
+                    messages: [
+                        { role: "user", content: userMessage }
+                    ],
+                })
+            });
+
+            const data = await response.json();
+            return {
+                text: data.content.find(block => block.type === "text")?.text || "",
+                usage: data.usage
+            };
+        }
+
+        // Agent 2: Screenwriter
+        async function generateScreenplay(prompt, length) {
+            const detailLevel = {
+                'краткий': 'краткую версию с основными сценами (15-20 сцен)',
+                'средний': 'детализированную версию с полным развитием сюжета (30-40 сцен)',
+                'полный': 'максимально подробную версию со всеми деталями (50+ сцен)'
+            };
+
+            const systemPrompt = `Ты - профессиональный сценарист полнометражных фильмов с опытом работы в Голливуде. Ты создаёшь сценарии в стандартном формате киноиндустрии.
+
+ФОРМАТ СЦЕНАРИЯ:
+- Используй формат: СЦЕНА - ОПИСАНИЕ - ДИАЛОГИ
+- Нумеруй сцены
+- Указывай локацию и время суток (ВНУТРИ/СНАРУЖИ, ДЕНЬ/НОЧЬ)
+- Описания действий в настоящем времени
+- Имена персонажей заглавными буквами перед диалогами
+- Ремарки в скобках
+
+СТРУКТУРА:
+АКТ 1 (25%): Экспозиция, знакомство с героями, завязка
+АКТ 2 (50%): Развитие конфликта, препятствия, мидпоинт, кульминация
+АКТ 3 (25%): Разрешение, развязка, финал
+
+Создавай эмоциональные, визуальные сцены с глубокими персонажами.`;
+
+            const userMessage = `${prompt}
+
+Создай ${detailLevel[length]} сценария полнометражного фильма в профессиональном формате.`;
+
+            const response = await fetch(API_ENDPOINT, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    model: "claude-sonnet-4-20250514",
+                    max_tokens: 4000,
+                    system: systemPrompt,
+                    messages: [
+                        { role: "user", content: userMessage }
+                    ],
+                })
+            });
+
+            const data = await response.json();
+            return {
+                text: data.content.find(block => block.type === "text")?.text || "",
+                usage: data.usage
+            };
+        }
+
+        // Main workflow
+        document.getElementById('generateBtn').addEventListener('click', async () => {
+            const userIdea = document.getElementById('userIdea').value.trim();
+            const genre = document.getElementById('genre').value;
+            const length = document.getElementById('length').value;
+
+            if (!userIdea) {
+                alert('Пожалуйста, опишите вашу идею!');
+                return;
+            }
+
+            const btn = document.getElementById('generateBtn');
+            const progress = document.getElementById('progress');
+            const progressText = document.getElementById('progressText');
+            const promptOutput = document.getElementById('promptOutput');
+            const screenplayOutput = document.getElementById('screenplayOutput');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const dbStatus = document.getElementById('dbStatus');
+            const dbStatusText = document.getElementById('dbStatusText');
+
+            btn.disabled = true;
+            progress.classList.remove('hidden');
+            promptOutput.innerHTML = '<span class="text-gray-500 italic">Генерация промпта...</span>';
+            screenplayOutput.innerHTML = '<span class="text-gray-500 italic">Ожидание промпта...</span>';
+            downloadBtn.classList.add('hidden');
+
+            try {
+                // Create project in DB
+                progressText.textContent = '💾 Создание проекта в базе данных...';
+                const projectResult = await dbCreateProject(userIdea, genre, length);
+                
+                if (projectResult.success) {
+                    currentProjectId = projectResult.project_id;
+                    dbStatus.classList.remove('hidden');
+                    dbStatusText.textContent = `Проект #${currentProjectId} создан`;
+                }
+
+                // Step 1: Generate Prompt
+                progressText.textContent = '🤖 Агент 1 создаёт промпт...';
+                const promptResult = await generatePrompt(userIdea, genre, length);
+                promptOutput.textContent = promptResult.text;
+                document.getElementById('promptStatus').textContent = '✅ Промпт готов';
+
+                // Save prompt to DB
+                const promptDbResult = await dbSavePrompt(currentProjectId, promptResult.text, promptResult.usage?.output_tokens);
+                if (promptDbResult.success) {
+                    currentPromptId = promptDbResult.prompt_id;
+                    dbStatusText.textContent = `Промпт сохранён (ID: ${currentPromptId})`;
+                }
+
+                // Step 2: Generate Screenplay
+                progressText.textContent = '✍️ Агент 2 пишет сценарий...';
+                screenplayOutput.innerHTML = '<span class="text-yellow-300 italic">Сценарист работает над вашим фильмом...</span>';
+                
+                const screenplayResult = await generateScreenplay(promptResult.text, length);
+                screenplayOutput.textContent = screenplayResult.text;
+                document.getElementById('screenplayStatus').textContent = '✅ Сценарий готов';
+
+                // Save screenplay to DB
+                const screenplayDbResult = await dbSaveScreenplay(
+                    currentProjectId, 
+                    currentPromptId, 
+                    screenplayResult.text, 
+                    screenplayResult.usage?.output_tokens
+                );
+                if (screenplayDbResult.success) {
+                    dbStatusText.textContent = `Сценарий сохранён | Слов: ${screenplayDbResult.word_count} | Сцен: ${screenplayDbResult.scene_count}`;
+                }
+
+                // Show download button
+                downloadBtn.classList.remove('hidden');
+                downloadBtn.onclick = () => {
+                    const blob = new Blob([screenplayResult.text], { type: 'text/plain;charset=utf-8' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `screenplay_${currentProjectId}.txt`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                };
+
+                progressText.textContent = '✅ Все агенты завершили работу!';
+                setTimeout(() => progress.classList.add('hidden'), 3000);
+
+            } catch (error) {
+                console.error('Ошибка:', error);
+                progressText.textContent = '❌ Ошибка: ' + error.message;
+                promptOutput.textContent = 'Произошла ошибка при генерации промпта.';
+                screenplayOutput.textContent = 'Не удалось создать сценарий.';
+            } finally {
+                btn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

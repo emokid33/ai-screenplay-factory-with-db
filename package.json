@@ -1,0 +1,22 @@
+{
+  "name": "ai-screenplay-system",
+  "version": "1.0.0",
+  "description": "AI система для создания сценариев с экспортом в Word",
+  "main": "generate_docx.js",
+  "scripts": {
+    "install": "npm install",
+    "test": "node generate_docx.js test_data.json test_output.docx"
+  },
+  "dependencies": {
+    "docx": "^8.5.0"
+  },
+  "keywords": [
+    "screenplay",
+    "ai",
+    "docx",
+    "word",
+    "document"
+  ],
+  "author": "AI System",
+  "license": "MIT"
+}
